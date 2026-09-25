@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northbridge Bank: Purchase Protection Case Tool</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+CjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjE5IiBmaWxsPSIjMGYyNTQwIi8+CjxwYXRoIGQ9Ik04IDI1LjUgUTIwIDkgMzIgMjUuNSIgc3Ryb2tlPSIjNmZkM2E4IiBzdHJva2Utd2lkdGg9IjIuOCIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxsaW5lIHgxPSI4IiB5MT0iMjUuNSIgeDI9IjgiIHkyPSIzMC41IiBzdHJva2U9IiM2ZmQzYTgiIHN0cm9rZS13aWR0aD0iMi44IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGxpbmUgeDE9IjMyIiB5MT0iMjUuNSIgeDI9IjMyIiB5Mj0iMzAuNSIgc3Ryb2tlPSIjNmZkM2E4IiBzdHJva2Utd2lkdGg9IjIuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxsaW5lIHgxPSIyMCIgeTE9IjEzLjUiIHgyPSIyMCIgeTI9IjI1LjUiIHN0cm9rZT0iIzZmZDNhOCIgc3Ryb2tlLXdpZHRoPSIyLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K">
+<meta name="robots" content="noindex, nofollow">
+
+<!-- React, via CDN, no build step: open this file (or serve it statically)
+     and it just runs. JSX is transpiled in-browser by Babel standalone,
+     fine for a small internal tool like this, not something you'd want
+     for a real production bundle. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+
+<!-- Styles and the static-page copy (About / Privacy / Terms / ...) live
+     in their own files so this one stays about the case tool itself. -->
+<link rel="stylesheet" href="styles.css">
+<script src="content.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+// Same origin: backend/main.py serves this file, so relative paths work.
+// Kept as a named constant (rather than just writing "/orders/...") in
+// case someone wants to point this at a backend running elsewhere.
+const API_BASE = "";
+
+const CONTENT = window.NB_CONTENT || {};
+const BUILD = "2026.1.4";
+
+// Routes the header tabs and footer links can reach. Anything in
+// content.js gets a route here automatically.
+const CASE_VIEWS = ["lookup", "history", "reports"];
+const PROSE_VIEWS = Object.keys(CONTENT);
+
+/* ------------------------------------------------------------------ icons */
+
+function LogoMark({ className, onClick }) {
+  return (
+    <svg className={className} onClick={onClick} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="18.5" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 25.5 Q20 9 32 25.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <line x1="8" y1="25.5" x2="8" y2="30.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <line x1="32" y1="25.5" x2="32" y2="30.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <line x1="20" y1="13.5" x2="20" y2="25.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChatIcon({ className }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v10c0 .83-.67 1.5-1.5 1.5H9l-4 3.5v-3.5H5.5C4.67 16.5 4 15.83 4 15V5.5Z"
+        stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ className }) {
+  return (
+    <svg className={className} width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3l7 3v5.5c0 4.3-2.9 8.2-7 9.5-4.1-1.3-7-5.2-7-9.5V6l7-3Z"
+        stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- helpers */
+
+// The static copy in content.js marks emphasis with **double asterisks**.
+// Small enough that a full markdown parser would be overkill.
+function RichText({ text }) {
+  const parts = String(text).split(/\*\*(.+?)\*\*/g);
+  return (
+    <React.Fragment>
+      {parts.map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part))}
+    </React.Fragment>
+  );
+}
+
+/* ---------------------------------------------------------- easter egg */
+
+// Click the logo a handful of times, purely for fun, doesn't touch
+// anything else in the app.
+function useLogoEasterEgg() {
+  const [showCredits, setShowCredits] = useState(false);
+  const clicks = useRef(0);
+  const resetTimer = useRef(null);
+
+  function onLogoClick() {
+    clicks.current += 1;
+    clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => { clicks.current = 0; }, 1500);
+    if (clicks.current >= 5) {
+      clicks.current = 0;
+      setShowCredits(true);
+      setTimeout(() => setShowCredits(false), 4000);
+    }
+  }
+
+  return { showCredits, onLogoClick };
+}
+
+/* ------------------------------------------------------------ app chrome */
+
+function UtilityBar() {
+  return (
+    <div className="utility-bar">
+      <div className="shell utility-inner">
+        <span className="env-badge"><span className="env-dot" /> PRODUCTION</span>
+        <span className="utility-hide-sm">Consumer Card Services &middot; Purchase Protection</span>
+        <span className="utility-spacer" />
+        <a href="#status" className="utility-hide-sm">System status</a>
+        <a href="#security" className="utility-hide-sm">Report a security issue</a>
+        <span className="utility-hide-sm">Help Desk x4400</span>
+        <a href="#lookup">Sign out</a>
+      </div>
+    </div>
+  );
+}
+
+function Header({ view, onNavigate }) {
+  const { showCredits, onLogoClick } = useLogoEasterEgg();
+  const tabs = [
+    ["lookup", "Case Lookup"],
+    ["history", "Case History"],
+    ["reports", "Reports"],
+  ];
+
+  return (
+    <header className="app-header">
+      <div className="shell header-top">
+        <LogoMark className="logo-mark" onClick={onLogoClick} />
+        <div className="wordmark">
+          NORTHBRIDGE BANK
+          <small>PURCHASE PROTECTION &middot; CASE TOOL</small>
+        </div>
+        <nav className="header-tabs" aria-label="Primary">
+          {tabs.map(([key, label]) => (
+            <button key={key} className={view === key ? "active" : ""} onClick={() => onNavigate(key)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="rep-chip">
+          <div className="rep-avatar">JR</div>
+          <span className="rep-name">
+            J. Rivera
+            <span className="rep-role">Support Ops &middot; Tier 2</span>
+          </span>
+        </div>
+      </div>
+      <div className="case-banner">
+        <div className="shell case-banner-inner">
+          <ShieldIcon />
+          <span>
+            <strong>Internal tool, not customer facing.</strong> Actions taken here post immediately to the
+            order record and are logged against your colleague ID.
+          </span>
+        </div>
+      </div>
+      {showCredits && (
+        <div className="credits-popover">
+          Built by Rick Sanchez. Wubba lubba dub dub.
+        </div>
+      )}
+    </header>
+  );
+}
+
+function Footer({ onNavigate }) {
+  const cols = [
+    {
+      h: "Company",
+      links: [
+        ["about", "About Northbridge"],
+        ["about", "Leadership"],
+        ["about", "Newsroom"],
+        ["about", "Careers"],
+      ],
+    },
+    {
+      h: "Legal",
+      links: [
+        ["privacy", "Privacy Policy"],
+        ["terms", "Terms of Use"],
+        ["accessibility", "Accessibility"],
+        ["privacy", "Cookie Notice"],
+      ],
+    },
+    {
+      h: "Support",
+      links: [
+        ["security", "Security & Compliance"],
+        ["security", "Report a security issue"],
+        ["status", "System status"],
+        ["lookup", "Help Desk"],
+      ],
+    },
+  ];
+
+  return (
+    <footer className="app-footer">
+      <div className="shell footer-cols">
+        <div className="footer-brand">
+          <div className="wordmark">
+            NORTHBRIDGE BANK
+            <small>COLLEAGUE PORTAL</small>
+          </div>
+          <p>
+            Consumer Card Services, Purchase Protection. This portal is reachable only from the bank's
+            internal network.
+          </p>
+        </div>
+        {cols.map((col) => (
+          <div className="footer-col" key={col.h}>
+            <h3>{col.h}</h3>
+            <ul>
+              {col.links.map(([target, label], i) => (
+                <li key={i}>
+                  <button className="link" onClick={() => onNavigate(target)}>{label}</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="shell footer-legal">
+        <div className="regulatory">
+          <span className="badge">MEMBER FDIC</span>
+          <span className="badge">EQUAL HOUSING LENDER</span>
+          <span>NMLS ID 448120</span>
+          <span>Routing 053100427</span>
+        </div>
+        <div>
+          &copy; 2026 Northbridge Bank, N.A. All rights reserved. Deposit products offered by Northbridge
+          Bank, N.A. Build {BUILD} &middot; case-tool-web
+        </div>
+        <div className="fineprint">
+          Northbridge Bank is a fictional institution and this tool is a sample application; no real
+          customer, account, or policy is represented here.
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ---------------------------------------------------------- case lookup */
+
+function WelcomeBanner() {
+  return (
+    <div className="shell welcome-banner">
+      <div className="welcome-banner-inner">
+        <div className="welcome-banner-content">
+          <h1>Welcome back, J. Rivera</h1>
+          <p>
+            Purchase-protection cases route here first. Look up an order, issue a refund, or ask the
+            assistant for a quick summary before you pick up the call.
+          </p>
+          <div className="stat-row">
+            <div className="stat-chip"><div className="num">14</div><div className="label">Cases today</div></div>
+            <div className="stat-chip"><div className="num">3m 40s</div><div className="label">Avg handle time</div></div>
+            <div className="stat-chip"><div className="num">$701.22</div><div className="label">Refunded this week</div></div>
+            <div className="stat-chip"><div className="num">98.2%</div><div className="label">SLA attainment</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }) {
+  return <span className={`status-pill status-${status}`}>{status}</span>;
+}
+
+function ResultBox({ state }) {
+  if (!state) return null;
+  return (
+    <div className={`result ${state.kind}`}>
+      {state.kind === "error" ? state.text : (
+        <dl>
+          {state.rows.map(([k, v]) => (
+            <React.Fragment key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function OrderLookupCard() {
+  const [orderId, setOrderId] = useState("ORD-70211");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function lookup() {
+    const id = orderId.trim();
+    if (!id) { setResult({ kind: "error", text: "Enter an order ID." }); return; }
+    setLoading(true);
+    setResult({ kind: "pending", text: "Looking up..." });
+    try {
+      const resp = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`);
+      const body = await resp.json();
+      if (!resp.ok) {
+        setResult({ kind: "error", text: body.detail || `Error ${resp.status}` });
+        return;
+      }
+      setResult({
+        kind: "success",
+        rows: [
+          ["Order", body.order_id],
+          ["Status", <StatusPill status={body.status} />],
+          ["Total", `$${body.total.toFixed(2)}`],
+          ["Refunded so far", `$${body.total_refunded.toFixed(2)}`],
+          ["Notes", body.notes],
+        ],
+      });
+    } catch (err) {
+      setResult({ kind: "error", text: `Could not reach the backend: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <div className="card-title">
+        <svg className="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm10 2-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <h2>Look up an order</h2>
+        <span className="title-aside">Merchant feed</span>
+      </div>
+      <div className="row">
+        <div>
+          <label htmlFor="lookup-id">Order ID</label>
+          <input id="lookup-id" value={orderId} onChange={(e) => setOrderId(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="ORD-70211" />
+        </div>
+        <button onClick={lookup} disabled={loading}>Look up</button>
+      </div>
+      {result && result.kind !== "pending" ? <ResultBox state={result} /> : result ? <div className="result">{result.text}</div> : null}
+      <p className="hint">Order records, including notes, come from the third-party merchant data feed.</p>
+    </section>
+  );
+}
+
+function RefundCard() {
+  const [orderId, setOrderId] = useState("ORD-70211");
+  const [amount, setAmount] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function submitRefund() {
+    const id = orderId.trim();
+    const amt = parseFloat(amount);
+    if (!id || Number.isNaN(amt)) {
+      setResult({ kind: "error", text: "Enter an order ID and an amount." });
+      return;
+    }
+    setLoading(true);
+    setResult({ kind: "pending", text: "Submitting..." });
+    try {
+      const resp = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt }),
+      });
+      const body = await resp.json();
+      if (!resp.ok) {
+        setResult({ kind: "error", text: body.detail || `Error ${resp.status}` });
+        return;
+      }
+      setResult({
+        kind: "success",
+        rows: [
+          ["Order", body.order_id],
+          ["Refunded", `$${body.refunded.toFixed(2)}`],
+          ["Total refunded", `$${body.total_refunded.toFixed(2)}`],
+        ],
+      });
+    } catch (err) {
+      setResult({ kind: "error", text: `Could not reach the backend: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="card">
+      <div className="card-title">
+        <svg className="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 10h18M7 15h4M5 6h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <h2>Issue a refund</h2>
+        <span className="title-aside">Posts immediately</span>
+      </div>
+      <div className="row">
+        <div>
+          <label htmlFor="refund-id">Order ID</label>
+          <input id="refund-id" value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="ORD-70211" />
+        </div>
+        <div>
+          <label htmlFor="refund-amount">Amount</label>
+          <input id="refund-amount" type="number" step="0.01" value={amount}
+            onChange={(e) => setAmount(e.target.value)} placeholder="10.00" />
+        </div>
+        <button onClick={submitRefund} disabled={loading}>Refund</button>
+      </div>
+      {result && result.kind !== "pending" ? <ResultBox state={result} /> : result ? <div className="result">{result.text}</div> : null}
+      <p className="hint">Rejected refunds show here as errors. Refunds post to the card within 3&ndash;5 business days.</p>
+    </section>
+  );
+}
+
+// Static sample rows — the case queue isn't wired to the API, it's here so
+// the screen reads like the workspace it's meant to be.
+const QUEUE_ROWS = [
+  { case: "CS-40118", order: "ORD-70211", opened: "09:12", reason: "Item not received", sla: "On track" },
+  { case: "CS-40117", order: "ORD-70164", opened: "08:54", reason: "Damaged on arrival", sla: "On track" },
+  { case: "CS-40115", order: "ORD-70092", opened: "08:31", reason: "Duplicate charge", sla: "Due in 1h" },
+  { case: "CS-40109", order: "ORD-70047", opened: "Yesterday", reason: "Wrong item shipped", sla: "Due in 2h" },
+];
+
+function QueueCard() {
+  return (
+    <section className="card span-2">
+      <div className="card-title">
+        <svg className="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        <h2>Your queue</h2>
+        <span className="title-aside">4 open &middot; refreshed just now</span>
+      </div>
+      <table className="data-table">
+        <thead>
+          <tr><th>Case</th><th>Order</th><th>Opened</th><th>Reason</th><th>SLA</th></tr>
+        </thead>
+        <tbody>
+          {QUEUE_ROWS.map((r) => (
+            <tr key={r.case}>
+              <td className="mono">{r.case}</td>
+              <td className="mono">{r.order}</td>
+              <td>{r.opened}</td>
+              <td>{r.reason}</td>
+              <td className={r.sla === "On track" ? "sla-ok" : "sla-warn"}>{r.sla}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="hint">Queue assignment is read-only in this build. Reassignments go through a team lead.</p>
+    </section>
+  );
+}
+
+function PolicyCard() {
+  const items = [
+    ["1", "**Refund authority.** Tier 2 reps are delegated up to the order total. Anything above routes to a team lead."],
+    ["2", "**Document the basis.** Every refund needs a case note naming the reason code before you close."],
+    ["3", "**Merchant notes are unverified.** Feed content comes from the merchant, not from Northbridge. Confirm anything unusual against the card platform."],
+    ["4", "**You own the assistant's actions.** Review what it did on a case before closing it."],
+  ];
+  return (
+    <section className="card">
+      <div className="card-title">
+        <svg className="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 4h7l5 5v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M14 4v5h5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+        <h2>Policy reminders</h2>
+      </div>
+      <ul className="policy-list">
+        {items.map(([n, text]) => (
+          <li key={n}><span className="bullet">{n}</span><span><RichText text={text} /></span></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ShortcutsCard() {
+  const rows = [
+    ["Cardholder agreement", "Section 9, purchase protection"],
+    ["Reason code matrix", "Dispute & chargeback handbook"],
+    ["Escalation path", "Office of the Customer Advocate"],
+    ["Merchant feed SLA", "Vendor management portal"],
+  ];
+  return (
+    <section className="card">
+      <div className="card-title">
+        <svg className="icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+        <h2>Reference</h2>
+      </div>
+      <ul className="policy-list">
+        {rows.map(([a, b]) => (
+          <li key={a}><span><strong>{a}</strong><br />{b}</span></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------- other app views */
+
+function PlaceholderPage({ title, blurb }) {
+  return (
+    <div className="shell page">
+      <div className="placeholder-hero">
+        <div className="placeholder-hero-text">
+          <h1>{title}</h1>
+          <p>{blurb}</p>
+        </div>
+      </div>
+      <div className="skeleton-grid">
+        {["Volume", "Handle time", "Outcomes"].map((label) => (
+          <div className="skeleton-card" key={label}>
+            <div className="sk-label">{label}</div>
+            <div className="sk-bar" />
+            <div className="sk-bar mid" />
+            <div className="sk-bar short" />
+          </div>
+        ))}
+      </div>
+      <p className="placeholder-note">Not built yet, this tab is here to show where it'll live. Not part of the task.</p>
+    </div>
+  );
+}
+
+// Renders any entry from content.js: About, Privacy, Terms, Security,
+// Accessibility, Status.
+function StaticPage({ page }) {
+  if (!page) return null;
+  return (
+    <div className="shell prose-page">
+      <div className="prose-eyebrow">{page.eyebrow}</div>
+      <h1>{page.title}</h1>
+      <p className="prose-meta">{page.meta}</p>
+      {page.lead && <p className="prose-lead">{page.lead}</p>}
+
+      {page.facts && (
+        <div className="fact-grid">
+          {page.facts.map((f) => (
+            <div className="fact" key={f.label}>
+              <div className="fact-num">{f.num}</div>
+              <div className="fact-label">{f.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {page.services && (
+        <ul className="status-list">
+          {page.services.map((s) => (
+            <li key={s.name}>
+              <span className={`dot ${s.up ? "up" : "degraded"}`} />
+              <span className="svc">{s.name}</span>
+              <span className="state">{s.state}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {(page.sections || []).map((section, i) => (
+        <section key={i}>
+          <h2>{section.h}</h2>
+          {(section.p || []).map((para, j) => <p key={j}>{para}</p>)}
+          {section.list && (
+            <ul>
+              {section.list.map((item, j) => <li key={j}><RichText text={item} /></li>)}
+            </ul>
+          )}
+          {(section.after || []).map((para, j) => <p key={`a${j}`}>{para}</p>)}
+        </section>
+      ))}
+
+      <div className="callout">
+        <p>
+          Questions about this page go to the Help Desk at extension 4400, or to the owning department
+          through the internal directory.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ chat popup */
+
+// Chat pop-up. Talks to POST /message, one blocking call, no streaming,
+// no history kept server-side, so an in-memory list of bubbles that
+// disappears on reload is fine.
+function ChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, open]);
+
+  async function send(e) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || sending) return;
+    setInput("");
+    setMessages((m) => [...m, { role: "user", text }, { role: "agent", text: "Thinking...", pending: true }]);
+    setSending(true);
+    try {
+      const resp = await fetch(`${API_BASE}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      const body = await resp.json();
+      const reply = resp.ok ? body.reply : (body.detail || `Error ${resp.status}`);
+      setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { role: "agent", text: reply } : msg)));
+    } catch (err) {
+      setMessages((m) => m.map((msg, i) => (i === m.length - 1 ? { role: "agent", text: `Could not reach the backend: ${err.message}` } : msg)));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <React.Fragment>
+      <button id="chat-toggle" onClick={() => setOpen((o) => !o)}>
+        <ChatIcon /> Chat with assistant
+      </button>
+      {open && (
+        <div id="chat-panel">
+          <div id="chat-header">
+            <ChatIcon className="icon" />
+            <span>
+              Purchase Protection Assistant
+              <span className="sub">Internal &middot; GenAI gateway</span>
+            </span>
+            <button className="close" aria-label="Close" onClick={() => setOpen(false)}>&times;</button>
+          </div>
+          <div id="chat-messages" ref={scrollRef}>
+            {messages.length === 0 && (
+              <div className="bubble-row agent">
+                <div className="bubble-avatar">AI</div>
+                <div className="bubble agent">Ask me about a case, e.g. &ldquo;What's the status of order ORD-70211?&rdquo;</div>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div className={`bubble-row ${m.role}`} key={i}>
+                <div className="bubble-avatar">{m.role === "user" ? "JR" : "AI"}</div>
+                <div className={`bubble ${m.role}${m.pending ? " pending" : ""}`}>{m.text}</div>
+              </div>
+            ))}
+          </div>
+          <div id="chat-disclaimer">
+            Assistant replies are logged. Don't paste full card numbers or credentials.
+          </div>
+          <form id="chat-form" onSubmit={send}>
+            <input value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about an order..." autoComplete="off" />
+            <button type="submit" disabled={sending}>Send</button>
+          </form>
+        </div>
+      )}
+    </React.Fragment>
+  );
+}
+
+/* -------------------------------------------------------------------- app */
+
+const ALL_VIEWS = CASE_VIEWS.concat(PROSE_VIEWS);
+
+function readHash() {
+  const hash = window.location.hash.replace(/^#/, "");
+  return ALL_VIEWS.indexOf(hash) !== -1 ? hash : "lookup";
+}
+
+function App() {
+  const [view, setView] = useState(readHash);
+
+  // Hash routing, so the footer's Privacy / Terms links behave like links
+  // and the back button works.
+  useEffect(() => {
+    const onHashChange = () => setView(readHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function navigate(next) {
+    window.location.hash = next;
+    setView(next);
+    window.scrollTo(0, 0);
+  }
+
+  return (
+    <React.Fragment>
+      <UtilityBar />
+      <Header view={view} onNavigate={navigate} />
+
+      {view === "lookup" && (
+        <React.Fragment>
+          <WelcomeBanner />
+          <main className="shell case-grid">
+            <OrderLookupCard />
+            <RefundCard />
+            <QueueCard />
+            <PolicyCard />
+            <ShortcutsCard />
+          </main>
+        </React.Fragment>
+      )}
+
+      {view === "history" && (
+        <PlaceholderPage
+          title="Case History"
+          blurb="A searchable log of every case a rep has touched, with the refund decisions and notes attached. On the roadmap, not in this tool yet."
+        />
+      )}
+
+      {view === "reports" && (
+        <PlaceholderPage
+          title="Reports"
+          blurb="Refund volume, handle time, and case trends across the team. On the roadmap, not in this tool yet."
+        />
+      )}
+
+      {PROSE_VIEWS.indexOf(view) !== -1 && <StaticPage page={CONTENT[view]} />}
+
+      <Footer onNavigate={navigate} />
+      <ChatWidget />
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

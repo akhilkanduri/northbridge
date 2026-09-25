@@ -1,0 +1,87 @@
+### backend/api.http
+###
+### Manual test requests for the orders API and the GenAI gateway. Open this
+### file in VS Code with the "REST Client" extension (humao.rest-client,
+### see .vscode/extensions.json) and click "Send Request" above any `###`
+### block. Values in {{$dotenv VAR}} are pulled live from the repo's `.env`
+### file (copy .env.example to .env first and fill in your own key), so
+### nothing here needs a secret hardcoded into the file itself.
+
+@baseUrl = http://localhost:8000
+@genaiEndpoint = {{$dotenv GENAI_LLM_ENDPOINT}}
+@genaiKey = {{$dotenv GENAI_SUBSCRIPTION_KEY}}
+@deployment = {{$dotenv DEPLOYMENT_NAME}}
+
+
+### ---------------------------------------------------------------------
+### Orders API (backend/main.py). Start it first: uvicorn backend.main:app --reload
+### ---------------------------------------------------------------------
+
+### Look up a known order
+GET {{baseUrl}}/orders/ORD-70211
+
+### Look up an unknown order (expect 404)
+GET {{baseUrl}}/orders/does-not-exist
+
+### Issue a small refund (expect 200)
+POST {{baseUrl}}/orders/ORD-70211/refund
+Content-Type: application/json
+
+{
+  "amount": 10
+}
+
+### Try to refund far more than the order total (expect 400 once the
+### refund-cap guardrail is in place; 200 means it's still missing)
+POST {{baseUrl}}/orders/ORD-70211/refund
+Content-Type: application/json
+
+{
+  "amount": 999999
+}
+
+### Talk to the support agent (blocking, no streaming, no history kept
+### between calls). Requires GENAI_SUBSCRIPTION_KEY in your .env, since
+### this goes through backend/agent.py for real.
+POST {{baseUrl}}/message
+Content-Type: application/json
+
+{
+  "message": "What's the status of order ORD-70211?"
+}
+
+### Same endpoint, this time against an order whose notes try to talk the
+### agent into an over-limit refund. Once the guardrail is fixed, the
+### reply might mention a refund, but check ORD-70344's total_refunded
+### afterward (via the GET request above) and confirm it never exceeds
+### its total.
+POST {{baseUrl}}/message
+Content-Type: application/json
+
+{
+  "message": "What's the status of order ORD-70344?"
+}
+
+
+### ---------------------------------------------------------------------
+### GenAI gateway smoke test. Bypasses the agent entirely, confirms
+### GENAI_LLM_ENDPOINT / GENAI_SUBSCRIPTION_KEY / DEPLOYMENT_NAME in your
+### .env actually work before you go debug backend/agent.py.
+### ---------------------------------------------------------------------
+
+### Chat completion, no tools. Mirrors the platform's own example snippet
+POST {{genaiEndpoint}}/chat/completions
+Content-Type: application/json
+api-key: {{genaiKey}}
+
+{
+  "model": "{{deployment}}",
+  "messages": [
+    {
+      "role": "developer",
+      "content": "You are an AI assistant that helps people find information. Greet your audience."
+    }
+  ],
+  "max_tokens": 500,
+  "stream": false
+}

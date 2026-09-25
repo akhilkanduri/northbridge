@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northbridge Bank — Purchase-Protection AI Roadmap</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f6f7f9;
+    --text: #1a1d23;
+    --text-muted: #5b6270;
+    --border: #e2e5ea;
+    --accent: #0f766e;
+    --accent-soft: #ecfaf7;
+    --code-bg: #f4f5f7;
+    --code-border: #e2e5ea;
+    --navy: #1e293b;
+    --navy-soft: #f1f5f9;
+    --gold: #a16207;
+    --gold-soft: #fef7e6;
+    --status-shipped-bg: #ecfdf5;
+    --status-shipped-text: #047857;
+    --status-progress-bg: #eff6ff;
+    --status-progress-text: #1d4ed8;
+    --status-approved-bg: #fef7e6;
+    --status-approved-text: #a16207;
+    --status-future-bg: #f4f5f7;
+    --status-future-text: #5b6270;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --bg-subtle: #1b1e24;
+      --text: #e8eaed;
+      --text-muted: #9aa1ad;
+      --border: #2b2f37;
+      --accent: #2dd4bf;
+      --accent-soft: #12312c;
+      --code-bg: #1c1f26;
+      --code-border: #2b2f37;
+      --navy: #cbd5e1;
+      --navy-soft: #1c2433;
+      --gold: #f0c674;
+      --gold-soft: #2a2115;
+      --status-shipped-bg: #103527;
+      --status-shipped-text: #6ee7b7;
+      --status-progress-bg: #172a45;
+      --status-progress-text: #93c5fd;
+      --status-approved-bg: #2a2115;
+      --status-approved-text: #f0c674;
+      --status-future-bg: #1c1f26;
+      --status-future-text: #9aa1ad;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+  }
+
+  /* Cover block */
+  .kicker {
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 .75rem;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 .5rem;
+    letter-spacing: -0.015em;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    margin: 0 0 .75rem;
+    font-size: 1.02rem;
+    max-width: 46ch;
+  }
+  .byline {
+    color: var(--gold);
+    font-size: .85rem;
+    font-style: italic;
+    margin: 0 0 1.75rem;
+  }
+  .meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 0 2.5rem;
+    font-size: .85rem;
+  }
+  .meta-table tr:not(:last-child) td,
+  .meta-table tr:not(:last-child) th { border-bottom: 1px solid var(--border); }
+  .meta-table th {
+    text-align: left;
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .72rem;
+    padding: .65rem .9rem;
+    width: 32%;
+  }
+  .meta-table td {
+    padding: .65rem .9rem;
+  }
+  .approved-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: .4em;
+    font-weight: 700;
+    color: var(--status-approved-text);
+  }
+  .approved-tag::before {
+    content: "\2713";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
+    border-radius: 50%;
+    background: var(--status-approved-bg);
+    font-size: .75em;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    margin: 2.75rem 0 1rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  p, li { margin: 0 0 1rem; }
+  ul, ol { padding-left: 1.3rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 4px;
+    padding: .1em .4em;
+    font-size: .85em;
+  }
+
+  .exec-summary {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 10px;
+    padding: 1.3rem 1.5rem;
+    margin: 0 0 2rem;
+  }
+  .exec-summary p:last-child { margin-bottom: 0; }
+  .exec-summary .label {
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 .6rem;
+  }
+
+  /* Phase timeline */
+  .timeline {
+    position: relative;
+    margin: 0 0 2.5rem;
+    padding-left: 2.1rem;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: .55rem;
+    top: .4rem;
+    bottom: .4rem;
+    width: 2px;
+    background: var(--border);
+  }
+  .phase {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.4rem;
+    background: var(--bg);
+  }
+  .phase::before {
+    content: "";
+    position: absolute;
+    left: -1.87rem;
+    top: 1.5rem;
+    width: .65rem;
+    height: .65rem;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+    margin-bottom: .6rem;
+  }
+  .phase-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .phase-eyebrow {
+    display: block;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: .2rem;
+  }
+  .status {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .25rem .65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .status-shipped { background: var(--status-shipped-bg); color: var(--status-shipped-text); }
+  .status-progress { background: var(--status-progress-bg); color: var(--status-progress-text); }
+  .status-approved { background: var(--status-approved-bg); color: var(--status-approved-text); }
+  .status-future { background: var(--status-future-bg); color: var(--status-future-text); }
+  .phase ul { margin-bottom: 0; padding-left: 1.2rem; }
+  .phase li { margin-bottom: .4rem; }
+  .phase li:last-child { margin-bottom: 0; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1rem 1.2rem;
+    border-radius: 6px;
+    margin: 0 0 1.25rem;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .signoff {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.6rem;
+    margin: 2.5rem 0 0;
+    background: var(--bg-subtle);
+  }
+  .signoff .label {
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin: 0 0 .75rem;
+  }
+  .signoff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-top: 1rem;
+  }
+  .signoff-item .name { font-weight: 600; margin-bottom: .1rem; }
+  .signoff-item .role { font-size: .82rem; color: var(--text-muted); }
+  .signoff-item { border-top: 1px solid var(--border); padding-top: .6rem; }
+  @media (max-width: 520px) {
+    .signoff-grid { grid-template-columns: 1fr; }
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="kicker">Northbridge Bank &middot; Purchase-Protection Program</p>
+  <h1>Purchase-Protection AI Roadmap</h1>
+  <p class="subtitle">How the case-handling tool gets from an internal, employee-only build to something Northbridge can put in front of customers.</p>
+  <p class="byline">Prepared by <strong>Vaguely Strategic Partners, LLC</strong> &mdash; &ldquo;Synergizing Tomorrow, Today.&rdquo;&reg;</p>
+
+  <table class="meta-table">
+    <tr><th>Prepared for</th><td>Northbridge Bank &mdash; Executive Board &amp; Purchase-Protection Operations</td></tr>
+    <tr><th>Prepared by</th><td>Vaguely Strategic Partners, LLC &mdash; the outside consultancy engaged to build the case tool and propose where it goes next</td></tr>
+    <tr><th>Audience</th><td>Northbridge is a single-branch community bank, roughly 30 employees total, no in-house engineering or AI function</td></tr>
+    <tr><th>Status</th><td><span class="approved-tag">Roadmap approved</span> &mdash; Phase 2 is the current mandate</td></tr>
+  </table>
+
+  <div class="exec-summary">
+    <p class="label">Executive summary</p>
+    <p>Northbridge Bank runs on roughly 30 people total and has never had a dedicated engineering or AI function, every system of this kind has come from outside help. The purchase-protection case tool below (order lookup, refunds, and an AI assistant) was the first piece of that: built by Vaguely Strategic Partners, LLC, the outside consultancy hired for this work, shipped as a first pass, and left unfinished when the engagement ended.</p>
+    <p>This roadmap was originally put together by Vaguely Strategic Partners as part of that engagement, walked through with the operations lead and IT contact, then presented to and approved by the Executive Board as the direction for the program before the engagement ended. Phase 1 (hardening the existing internal tool) and Phase 2 (bringing customers in directly) are the approved, funded scope Northbridge is now carrying forward with new help; Phase 3 is directional only.</p>
+  </div>
+
+  <h2>Program phases</h2>
+
+  <div class="timeline">
+
+    <div class="phase">
+      <span class="phase-eyebrow">Phase 0</span>
+      <div class="phase-head">
+        <h3>Internal case tool</h3>
+        <span class="status status-shipped">Shipped</span>
+      </div>
+      <ul>
+        <li>Support reps look up an order and issue a refund by hand, or ask the built-in assistant to do it for them.</li>
+        <li>Employees only. Hosted locally, informally, wherever a rep happens to run it, nothing centrally managed.</li>
+        <li>Delivered by the outside consultancy; no independent review of the code, the assistant's behavior, or how it handles data from the (unvetted, third-party) order feed was ever completed.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="phase-eyebrow">Phase 1</span>
+      <div class="phase-head">
+        <h3>Production-harden the internal tool</h3>
+        <span class="status status-progress">In progress</span>
+      </div>
+      <ul>
+        <li>Get the existing internal tool to a state Northbridge would actually trust: correct, safe, and reviewed rather than assumed.</li>
+        <li>Covers the AI-specific parts as rigorously as the conventional ones, an assistant with tools that can take real action (like issuing a refund) needs at least the same scrutiny as the rest of the system.</li>
+        <li>This is the immediate, hands-on-keyboard part of the current engagement.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="phase-eyebrow">Phase 2</span>
+      <div class="phase-head">
+        <h3>Bring customers in directly</h3>
+        <span class="status status-approved">Board-approved &middot; next</span>
+      </div>
+      <ul>
+        <li>The purchase-protection team spends a meaningful chunk of every day on "where's my refund" and "what's the status of my order" questions that don't need a human in the loop, with a 30-person staff that time matters.</li>
+        <li>Let customers ask the same kind of assistant themselves, from the banking app or a self-service portal, instead of waiting on a rep for something the system already knows.</li>
+        <li>This is a different tool than the one that exists today, not just a new frontend on the same one: a support rep is a trained, authorized employee implicitly trusted by virtue of the job; a bank customer is a member of the public who happens to have an account. Every assumption from Phase 0 &mdash; who's allowed to ask about which order, what happens if the assistant is told to do something questionable, who's watching before an action like a refund actually lands &mdash; gets re-examined against that audience, not carried over by default.</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="phase-eyebrow">Phase 3</span>
+      <div class="phase-head">
+        <h3>Beyond purchase protection</h3>
+        <span class="status status-future">Directional &middot; not scheduled</span>
+      </div>
+      <ul>
+        <li>More self-service actions beyond order status and refunds.</li>
+        <li>Other channels: in-app chat, SMS.</li>
+        <li>Eventually, one system both employees and customers use, rather than two separate tools.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="signoff">
+    <p class="label">Board sign-off</p>
+    <p>This roadmap was authored by Vaguely Strategic Partners as part of the original engagement, discussed with Northbridge's operations lead and IT contact, then presented to and approved by the Executive Board as the program's direction. Phase 2 is not a hypothetical, it's the reason customer-facing access is part of the current scope of work, alongside hardening what already exists &mdash; whoever picks this up next inherits it as the active mandate, not a new proposal.</p>
+    <div class="signoff-grid">
+      <div class="signoff-item">
+        <div class="name">Vaguely Strategic Partners, LLC</div>
+        <div class="role">Prepared &amp; proposed by &mdash; original engagement</div>
+      </div>
+      <div class="signoff-item">
+        <div class="name">Purchase-Protection Operations Lead</div>
+        <div class="role">Sponsor, day-to-day program owner</div>
+      </div>
+      <div class="signoff-item">
+        <div class="name">Northbridge Bank Executive Board</div>
+        <div class="role">Approved &mdash; roadmap and Phase 2 mandate</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
